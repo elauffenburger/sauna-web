@@ -1,77 +1,104 @@
 // ==UserScript==
-// @name         New Userscript
+// @name         Asana Remote
 // @namespace    http://tampermonkey.net/
 // @version      0.1
-// @description  try to take over the world!
+// @description  Control Asana via sauna
 // @author       You
-// @match        https://app.asana.com*
+// @match        https://app.asana.com/*
 // @grant        none
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
-    var WEBSOCKET_URL = "wss://127.0.0.1:2794";
+    window.onload = function() {
+        var WEBSOCKET_URL = "ws://127.0.0.1:2794";
 
-    var socket = new WebSocket(WEBSOCKET_URL);
-    socket.onopen = main;
+        var socket = new WebSocket(WEBSOCKET_URL);
+        socket.onopen = main;
 
-    function main() {
-        var activeTaskIndex = 0;
-        var activeTaskEl = null;
+        modifyUi();
 
-        syncActiveTaskEl();
-        restyleTaskList();
+        function main() {
+            console.log("Socket to sauna open!");
 
-        socket.onmessage = function(event) {
-            var message = JSON.parse(event.data);
+            var activeTaskIndex = 0;
+            var activeTaskEl = null;
 
-            switch(message.type) {
-                case "complete-task":
-                    var completeTaskEl = getCompleteTaskElementForTaskElement(activeTaskEl);
-                    triggerClick(completeTaskEl);
-                    break;
-                case "nav-up":
-                    activeTaskIndex--;
-                    break;
-                case "nav-down":
-                    activeTaskIndex++;
-                    break;
+            resync();
+
+            socket.onmessage = function (event) {
+                var message = JSON.parse(event.data);
+
+                switch (message.t) {
+                    case "ready":
+                        console.log("sauna ready!");
+                        break;
+                    case "complete-task":
+                        var completeTaskEl = getCompleteTaskElementForTaskElement(activeTaskEl);
+                        triggerClick(completeTaskEl);
+                        activeTaskIndex--;
+                        break;
+                    case "nav-up":
+                        activeTaskIndex--;
+                        break;
+                    case "nav-down":
+                        activeTaskIndex++;
+                        break;
+                    default:
+                        console.error("Unknown sauna message type %O", message.t);
+                        break;
+                }
+
+                resync();
             }
 
-            syncActiveTaskEl();
-            restyleTaskList();
-        }
-
-        function syncActiveTaskEl() {
-            activeTaskEl = getTaskElement(activeTaskIndex);
-        }
-
-        function restyleTaskList() {
-            for (var taskEl of getTaskElements()) {
-                taskEl.style = "";
+            function syncActiveTaskEl() {
+                activeTaskEl = getTaskElement(activeTaskIndex);
             }
 
-            activeTaskEl.style = 'border: 1px solid red';
+            function restyleTaskList() {
+                for (var taskEl of getTaskElements()) {
+                    taskEl.style = "";
+                }
+
+                activeTaskEl.style = 'border: 1px solid red';
+            }
+
+            function resync() {
+                syncActiveTaskEl();
+                restyleTaskList();
+            }
         }
-    }
 
-    function getTaskElement(index) {
-        return getTaskElements()[index];
-    }
+        function modifyUi() {
+            hideEl(document.querySelector(".page-topbar"));
+            hideEl(document.querySelector(".PageToolbarStructure"));
+            document.querySelector(".PotListPage-gridPane").style.flex = "1 1 100%";
+            document.body.style.fontSize = "1.5em";
+        }
 
-    function getTaskElements() {
-        return document.querySelectorAll(".TaskList > .dropTargetRow");
-    }
+        function getTaskElement(index) {
+            return getTaskElements()[index];
+        }
 
-    function getCompleteTaskElementForTaskElement(taskEl) {
-        return taskEl.querySelector(".TaskRowCompletionStatus-checkbox");
-    }
+        function getTaskElements() {
+            return document.querySelectorAll(".TaskList > .dropTargetRow");
+        }
 
-    function triggerClick(el) {
-        var ev = document.createEvent('MouseEvents');
-        ev.initEvent('click', true, true);
+        function getCompleteTaskElementForTaskElement(taskEl) {
+            return taskEl.querySelector(".TaskRowCompletionStatus-checkbox");
+        }
 
-        el.dispatchEvent(ev);
+        function triggerClick(el) {
+            var ev = document.createEvent('MouseEvents');
+            ev.initEvent('click', true, true);
+
+            el.dispatchEvent(ev);
+        }
+
+        function hideEl(el) {
+            el.style.display = "none";
+        }
     }
 })();
