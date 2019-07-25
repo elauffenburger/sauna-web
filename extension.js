@@ -22,15 +22,23 @@
         function main() {
             console.log("Socket to sauna open!");
 
+            var activeTaskElSyncInterval = setInterval(function() {
+                if (activeTaskEl) {
+                    clearInterval(activeTaskElSyncInterval);
+                }
+
+                syncActiveTaskEl();
+            }, 250);
+
             var activeTaskIndex = 0;
             var activeTaskEl = null;
 
             resync();
 
             socket.onmessage = function (event) {
-                var message = JSON.parse(event.data);
+                var message = event.data;
 
-                switch (message.t) {
+                switch (message) {
                     case "ready":
                         console.log("sauna ready!");
                         break;
@@ -62,7 +70,9 @@
                     taskEl.style = "";
                 }
 
-                activeTaskEl.style = 'border: 1px solid red';
+                if (activeTaskEl) {
+                    activeTaskEl.style = 'border: 1px solid red';
+                }
             }
 
             function resync() {
